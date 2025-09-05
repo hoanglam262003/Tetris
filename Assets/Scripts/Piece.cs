@@ -1,3 +1,4 @@
+using Unity.Properties;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -8,12 +9,20 @@ public class Piece : MonoBehaviour
     public Vector3Int[] cells { get; private set; } 
     public Vector3Int position { get; private set; }
     public int rotationIndex { get; private set; }
+    public float stepDelay = 1f;
+    public float lockDelay = 0.5f;
+
+    private float stepTime;
+    private float lockTime;
+
     public void Initialize(Board board, Vector3Int position, TetrominoData data)
     {
         this.board = board;
         this.data = data;
         this.position = position;
         this.rotationIndex = 0;
+        this.stepTime = Time.time + this.stepDelay;
+        this.lockTime = 0f;
 
         if (this.cells == null)
         {
@@ -29,6 +38,7 @@ public class Piece : MonoBehaviour
     private void Update()
     {
         this.board.Clear(this);
+        this.lockTime += Time.deltaTime;
         if (Keyboard.current.qKey.wasPressedThisFrame)
         {
             Rotate(-1);
@@ -50,21 +60,41 @@ public class Piece : MonoBehaviour
             Move(Vector2Int.down);
         }
 
-        if (Keyboard.current.spaceKey.isPressed)
+        if (Keyboard.current.spaceKey.wasPressedThisFrame)
         {
-            Move(Vector2Int.down);
-            //HardDrop();
+            HardDrop();
+        }
+
+        if (Time.time >= this.stepTime)
+        {
+            Step();
         }
         this.board.Set(this);
     }
-    
-    //private void HardDrop()
-    //{
-    //    while (Move(Vector2Int.down))
-    //    {
-    //        continue;
-    //    }
-    //}
+
+    private void Step()
+    {
+        this.stepTime = Time.time + this.stepDelay;
+        Move(Vector2Int.down);
+        if (this.lockTime >= this.lockDelay)
+        {
+            Lock();
+        }
+    }
+    private void HardDrop()
+    {
+        while (Move(Vector2Int.down))
+        {
+            continue;
+        }
+        Lock();
+    }
+
+    private void Lock()
+    {
+        this.board.Set(this);
+        this.board.SpawnPiece();
+    }
 
     private bool Move(Vector2Int translation)
     {
@@ -77,6 +107,7 @@ public class Piece : MonoBehaviour
         if (valid)
         {
             this.position = newPosition;
+            this.lockTime = 0f;
         }
 
         return valid;
